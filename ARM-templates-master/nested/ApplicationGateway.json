@@ -1,0 +1,254 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "applicationGatewayName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Application Gateway resource."
+      }
+    },
+    "applicationGatewayTier": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Standard",
+        "WAF"
+      ],
+      "metadata": {
+        "description": "Tier for Application Gateway. Default is Standard."
+      }
+    },
+    "applicationGatewaySKU": {
+      "type": "string",
+      "defaultValue": "Medium",
+      "allowedValues": [
+        "Small",
+        "Medium",
+        "Large"
+      ],
+      "metadata": {
+        "description": "SKU for Application Gateway. Default is Medium."
+      }
+    },
+    "applicationGatewayCapacity": {
+      "type": "int",
+      "defaultValue": 2,
+      "minValue": 2,
+      "metadata": {
+        "description": "Specify the instance count of the Application Gateway. A minimum instance count of 2 is recommended for production workloads. Default is 2."
+      }
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "defaultValue": "network",
+      "metadata": {
+        "description": "Name of the virtual network that the Application Gateway will be on. Default is 'network' if using vnet template."
+      }
+    },
+    "virtualSubnetName": {
+      "type": "string",
+      "defaultValue": "application3",
+      "allowedValues": [
+        "management",
+        "application1",
+        "application2",
+        "application3"
+      ],
+      "metadata": {
+        "description": "The subnet for this Application Gateway.  It must be empty or only have Application Gateways. Default is application3 if using vnet template."
+      }
+    },
+    "backendIpAddress": {
+      "type": "string",
+      "defaultValue": "10.0.3.201",
+      "metadata": {
+        "description": "The internal IP address for this Application Gateway for the virtual subnet selected. Default is 10.0.3.201 for application3 subnet."
+      }
+    },
+    "publicIPAddressType": {
+      "type": "string",
+      "allowedValues": [
+        "Dynamic",
+        "Static"
+      ],
+      "defaultValue": "Dynamic",
+      "metadata": {
+        "description": "Type of the public IP address, static or dynamic. Default is Dynamic."
+      }
+    }
+  },
+
+
+
+  "variables": {
+    "AGpubIPname": "[concat(parameters('applicationGatewayName'), '_pubip')]",
+    "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+    "subnetID": "[concat(variables('vnetID'), '/subnets/', parameters('virtualSubnetName'))]",
+    "publicIPID": "[resourceId('Microsoft.Network/publicIPAddresses', variables('AGpubIPname'))]",
+    "AppGwID": "[resourceId('Microsoft.Network/applicationGateways', parameters('applicationGatewayName'))]",
+    "apiVersion": "2017-06-01"
+  },
+
+
+
+  "resources": [
+    {
+      "apiVersion": "[variables('apiVersion')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('AGpubIPname')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "PublicIP"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "[parameters('publicIPAddressType')]"
+      }
+    },
+
+
+
+    {
+      "apiVersion": "[variables('apiVersion')]",
+      "name": "[parameters('ApplicationGatewayName')]",
+      "type": "Microsoft.Network/applicationGateways",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/', variables('AGpubIPname'))]"
+      ],
+      "tags": {
+        "displayName": "ApplicationGateway"
+      },
+      "properties": {
+        "sku": {
+          "name": "[concat(parameters('applicationGatewayTier'), '_', parameters('applicationGatewaySKU'))]",
+          "tier": "[parameters('applicationGatewayTier')]",
+          "capacity": "[parameters('applicationGatewayCapacity')]"
+        },
+        "gatewayIPConfigurations": [
+          {
+            "name": "appGatewayIpConfig",
+            "properties": {
+              "subnet": {
+                "id": "[variables('subnetID')]"
+              }
+            }
+          }
+        ],
+        "sslCertificates": [],
+        "authenticationCertificates": [
+          {
+            "name": "wwwqa.nobudy-mm-search.Org.com",
+            "properties": {
+              "data": "fAKES1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tDQpNSUlGVkRDQ0JEeWdBd0lCQWdJTWMyM2lDRlB4TGJjS0J2dzRNQTBHQ1NxR1NJYjNEUUVCQ3dVQU1HWXhDekFKDQpCZ05WQkFZVEFrSkZNUmt3RndZRFZRUUtFeEJIYkc5aVlXeFRhV2R1SUc1MkxYTmhNVHd3T2dZRFZRUURFek5IDQpiRzlpWVd4VGFXZHVJRTl5WjJGdWFYcGhkR2x2YmlCV1lXeHBaR0YwYVc5dUlFTkJJQzBnVTBoQk1qVTJJQzBnDQpSekl3SGhjTk1UY3dOekV6TVRNMU1EVXhXaGNOTVRrd056RTBNVE0xTURVeFdqQjRNUXN3Q1FZRFZRUUdFd0pWDQpVekVSTUE4R0ExVUVDQk1JVFdsamFHbG5ZVzR4RVRBUEJnTlZCQWNUQ0VSbFlYSmliM0p1TVJzd0dRWURWUVFLDQpFeEpHYjNKa0lFMXZkRzl5SUVOdmJYQmhibmt4SmpBa0JnTlZCQU1USFhkM2QzRmhMbWR2ZEdRdGIyMHRjMlZoDQpjbU5vTG1admNtUXVZMjl0TUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF3V0YxDQpHY1dRVUVVV2RVZEh3MDJ3ZkF3U3lhNzFuR01ZZ0ZidnFLcnR5UmVIZEZCQW1PcitoVzZ5Nm1BK3R5QWVNcVd2DQpOTS9FSWFEUlRuWmxiMzIrSG9INTJhcU9BVnF0L2hMZEdNTkRQYmVtc3hETnpIVzRERUdwN2swSXVEWk13a0FHDQovZkMwa3ZRQTNNRXVURm0xeXVoYUlRZXRlQjRQK2pIWTFlVWJFTmpZQ045UjlqKzVSSWcrbkNuNU1oN3FjOWhhDQpBVW4zeW44czBpeUpEdzVub21ZMTB6TjYya3ZVSmkvOFlvRjVick94bXZPYXlRT1VIUm1hV3pWN01mam9ZaWFqDQo0SVpqQWNMR2J2QTUrd25WcTZLekpUYUlBd3oyZk1GaWxxSklsT2QvczdnZmxVN1ZRT0RtUEgyaUswdTI4Sm9UDQpUUXprS09PelR5M3NRZXVjZFFJREFRQUJvNElCN2pDQ0Flb3dEZ1lEVlIwUEFRSC9CQVFEQWdXZ01JR2dCZ2dyDQpCZ0VGQlFjQkFRU0JrekNCa0RCTkJnZ3JCZ0VGQlFjd0FvWkJhSFIwY0RvdkwzTmxZM1Z5WlM1bmJHOWlZV3h6DQphV2R1TG1OdmJTOWpZV05sY25RdlozTnZjbWRoYm1sNllYUnBiMjUyWVd4emFHRXlaekp5TVM1amNuUXdQd1lJDQpLd1lCQlFVSE1BR0dNMmgwZEhBNkx5OXZZM053TWk1bmJHOWlZV3h6YVdkdUxtTnZiUzluYzI5eVoyRnVhWHBoDQpkR2x2Ym5aaGJITm9ZVEpuTWpCV0JnTlZIU0FFVHpCTk1FRUdDU3NHQVFRQm9ESUJGREEwTURJR0NDc0dBUVVGDQpCd0lCRmlab2RIUndjem92TDNkM2R5NW5iRzlpWVd4emFXZHVMbU52YlM5eVpYQnZjMmwwYjNKNUx6QUlCZ1puDQpnUXdCQWdJd0NRWURWUjBUQkFJd0FEQkpCZ05WSFI4RVFqQkFNRDZnUEtBNmhqaG9kSFJ3T2k4dlkzSnNMbWRzDQpiMkpoYkhOcFoyNHVZMjl0TDJkekwyZHpiM0puWVc1cGVtRjBhVzl1ZG1Gc2MyaGhNbWN5TG1OeWJEQW9CZ05WDQpIUkVFSVRBZmdoMTNkM2R4WVM1bmIzUmtMVzl0TFhObFlYSmphQzVtYjNKa0xtTnZiVEFkQmdOVkhTVUVGakFVDQpCZ2dyQmdFRkJRY0RBUVlJS3dZQkJRVUhBd0l3SFFZRFZSME9CQllFRkpjc3lSZmJGZTBkZXRVL2VGdlpiRGVzDQo3bUJaTUI4R0ExVWRJd1FZTUJhQUZKYmVZZkc5SEJZcFV4ekF6SDA3Z3dCQTVocDhNQTBHQ1NxR1NJYjNEUUVCDQpDd1VBQTRJQkFRQ25KekFEdElQU00vNlNCbjZLa0R2LytkeUlUSkxRME45RlFmN1grSExNM0JNSVBuVTlacU8vDQpGZTkxSk5MVktKVVN2M0lUajdMcEt1YUZUbHN6cWVvdEdJbFdIaEhMQUJqeE80Wmd6Z2FFZGdhRjk0MDE0SnRiDQpWMnZ3aTVZYzFxbmh0VXo2bzA4VWN0Wmpodmo4ZjVhWDlLNEhqZkRDUXJWcmJucEJvUTBLQW05NGNYVjhGdmpFDQpGT0NhbDFvb3F0MEZ6bVhqTno4WUVydzhCeGhGbmRiSzlScGEwMVRkamY0bjZRNmI3SDdoaWhkcU1ZYVBUSFp1DQpUeXR1dkhkV1pWZFVNeFdHakVRdEJIUVhOUVlSTXAyeTZkU1VZU0pKd01udTB6RWRxb215aWwxcmdDS1lKRUlhDQowNUVZOHpPdGhPUmlweVNMMEluWDN4MHpQMitHWS8zTA0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQ0K"
+            }
+          }
+        ],
+        "frontendIPConfigurations": [
+          {
+            "name": "appGatewayFrontendIP",
+            "properties": {
+              "PublicIPAddress": {
+                "id": "[variables('publicIPID')]"
+              }
+            }
+          },
+          {
+            "name": "FrontendPrivateIP",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetID')]"
+              }
+            }
+          }
+        ],
+        "frontendPorts": [
+          {
+            "name": "appGatewayFrontendPort",
+            "properties": {
+              "Port": 80
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "appGatewayBackendPool",
+            "properties": {
+              "BackendAddresses": [
+                { "IpAddress": "[parameters('backendIpAddress')]" }
+              ]
+            }
+          }
+        ],
+        "backendHttpSettingsCollection": [
+          {
+            "name": "appGatewayBackendHttpSettings",
+            "properties": {
+              "provisioningState": "Succeeded",
+              "port": 443,
+              "protocol": "Https",
+              "cookieBasedAffinity": "Disabled",
+              "pickHostNameFromBackendAddress": false,
+              "probeEnabled": true,
+              "requestTimeout": 30,
+              "authenticationCertificates": [
+                {
+                  "Id": "[concat(variables('AppGwID'), '/authenticationCertificates/wwwqa.gotd-om-search.Org.com')]"
+                }
+              ]
+            }
+          }
+        ],
+        "httpListeners": [
+          {
+            "name": "appGatewayHttpListener",
+            "properties": {
+              "FrontendIPConfiguration": {
+                "Id": "[concat(variables('AppGwID'), '/frontendIPConfigurations/appGatewayFrontendIP')]"
+              },
+              "FrontendPort": {
+                "Id": "[concat(variables('AppGwID'), '/frontendPorts/appGatewayFrontendPort')]"
+              },
+              "Protocol": "Http",
+              "SslCertificate": null
+            }
+          }
+        ],
+        "urlPathMaps": [],
+        "requestRoutingRules": [
+          {
+            "Name": "rule1",
+            "properties": {
+              "RuleType": "Basic",
+              "httpListener": {
+                "id": "[concat(variables('AppGwID'), '/httpListeners/appGatewayHttpListener')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(variables('AppGwID'), '/backendAddressPools/appGatewayBackendPool')]"
+              },
+              "backendHttpSettings": {
+                "id": "[concat(variables('AppGwID'), '/backendHttpSettingsCollection/appGatewayBackendHttpSettings')]"
+              }
+            }
+          }
+        ],
+        "probes": [],
+        "redirectConfigurations": []
+      }
+    }
+  ],
+
+
+
+  "outputs": {
+    "AppGwOutput": {
+      "value": "[reference(parameters('ApplicationGatewayName'))]",
+      "type": "object"
+    },
+    "AppGwIPOutput": {
+      "value": "[reference(variables('AGpubIPname'))]",
+      "type": "object"
+    }
+  }
+}

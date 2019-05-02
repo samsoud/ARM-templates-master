@@ -1,0 +1,343 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "numApplicationSubnets": {
+      "type": "int",
+      "minValue": 1,
+      "maxValue": 254,
+      "defaultValue": 3,
+      "metadata": {
+        "description": "How many application subnets should be created in this network"
+      }
+    }
+  },
+
+
+
+  "variables": {
+    "networkPrefix": "10.0.0.0/16"
+  },
+
+
+
+  "resources": [
+    {
+      "name": "network",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2017-06-01",
+      "dependsOn": [
+        "appNSGLoop"
+      ],
+      "tags": {
+        "displayName": "network"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('networkPrefix')]"
+          ]
+        },
+        "copy": [
+          {
+            "name": "subnets",
+            "count": "[parameters('numApplicationSubnets')]",
+            "input": {
+              "name": "[concat('application', add(copyIndex('subnets'), 1))]",
+              "properties": {
+                "addressPrefix": "[concat('10.0.',add(copyIndex('subnets'), 1),'.0/24')]",
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat('application', add(copyIndex('subnets'), 1),'-nsg'))]"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+
+    {
+      "apiVersion": "2017-06-01",
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "name": "network/management",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkSecurityGroups/', 'management-nsg')]",
+        "[concat('Microsoft.Network/virtualNetworks/', 'network')]"
+      ],
+      "properties": {
+        "addressPrefix": "[concat('10.0.0.0/24')]",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'management-nsg')]"
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "management-nsg",
+      "apiVersion": "2017-06-01",
+      "comments": "Standard NSG ... allow SSH, HTTP, HTTPS, RDP via Org proxies",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "OrgProxyNA1_SSH",
+            "properties": {
+              "description": "Allow SSH traffic from Org NA1 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "136.1.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 201,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA2_SSH",
+            "properties": {
+              "description": "Allow SSH traffic from Org NA2 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "136.2.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 202,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA1_HTTPS",
+            "properties": {
+              "description": "Allow HTTPS traffic from Org NA1 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "136.1.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 205,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA2_HTTPS",
+            "properties": {
+              "description": "Allow HTTPS traffic from Org NA2 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "136.2.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 206,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA1_HTTP",
+            "properties": {
+              "description": "Allow HTTP traffic from Org NA1 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "136.1.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 209,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA2_HTTP",
+            "properties": {
+              "description": "Allow HTTP traffic from Org NA2 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "136.2.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 210,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA1_RDP",
+            "properties": {
+              "description": "Allow RDP traffic from Org NA1 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "136.1.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 220,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA2_RDP",
+            "properties": {
+              "description": "Allow RDP traffic from Org NA2 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "136.2.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 221,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      },
+      "dependsOn": []
+    },
+
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[concat('application', copyindex(1), '-nsg')]",
+      "apiVersion": "2017-06-01",
+      "comments": "[concat('Application ', copyindex(1))]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "NSGs"
+      },
+      "copy": {
+        "name": "appNSGLoop",
+        "count": "[parameters('numApplicationSubnets')]"
+      },
+      "properties": {
+        "securityRules": [
+          {
+            "name": "OrgProxyNA1_SSH",
+            "properties": {
+              "description": "Allow SSH traffic from Org NA1 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "136.1.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 201,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA2_SSH",
+            "properties": {
+              "description": "Allow SSH traffic from Org NA2 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "136.2.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 202,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA1_HTTPS",
+            "properties": {
+              "description": "Allow HTTPS traffic from Org NA1 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "136.1.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 205,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA2_HTTPS",
+            "properties": {
+              "description": "Allow HTTPS traffic from Org NA2 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "136.2.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 206,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA1_HTTP",
+            "properties": {
+              "description": "Allow HTTP traffic from Org NA1 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "136.1.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 209,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA2_HTTP",
+            "properties": {
+              "description": "Allow HTTP traffic from Org NA2 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "136.2.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 210,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA1_RDP",
+            "properties": {
+              "description": "Allow RDP traffic from Org NA1 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "136.1.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 220,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "OrgProxyNA2_RDP",
+            "properties": {
+              "description": "Allow RDP traffic from Org NA2 Proxy Server",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "136.2.0.0/16",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 221,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      },
+      "dependsOn": []
+    }
+  ],
+
+
+
+  "outputs": {
+    "network": {
+      "type": "object",
+      "value": "[reference('network')]"
+    }
+  }
+}

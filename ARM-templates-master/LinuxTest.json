@@ -1,0 +1,112 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "artifactsBaseLocation": {
+      "type": "string",
+      "defaultValue": "https://storageaccount1235.blob.core.windows.net/testtemplates"
+    },
+    "artifactsBaseLocationSasToken": {
+      "type": "securestring",
+      "defaultValue": ""
+    }
+  },
+
+
+
+  "variables": {
+    "nestedTemplateFnewer": "nested",
+    "networkTemplateFileName": "network.json",
+    "storageTemplateFileName": "storage.json",
+    "LinuxVMs": "LinuxVMsNoDataDisk.json"
+  },
+
+
+
+  "resources": [
+
+    {
+      "name": "LinuxMachines",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "sharedNetwork",
+        "sharedStorage",
+        "sharedVault"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('LinuxVMs'), parameters('artifactsBaseLocationSasToken'))]"
+        },
+        "parameters": {
+          "VMName": { "value": "jodylintst" },
+          "VMcount": { "value": 1 },
+          "VMcountStart": { "value": 1 },
+          "VMsize": { "value": "Standard_D2_v2" },
+          "adminUsername": { "value": "jlarrow" },
+          "adminSSHKeyData": { "value": "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAYEAmrh0qNFUKCvZPEDro3AV7f93fKlQNiGSlsP5uvKQrtKLYvSsxVIhUtY2ueF1VOnSWxXHtVAO8gMVf3yz9wz5nbPW/yWPHLjqguoLNnKRraPQqvaaOLxwR2nsvi65CD6ktXenkNRPCSHFOTkdp+agGxoQa/WYN+9pm2ya+URO4nlQ4mcOMbSK3OUA+yeLRLTG6GwTlJ5Mmsg+5kTE5INZiSjVfwbXfBBGiiJvyuEjv7IVVjWkiA/HekML/x59rs6pHJEWT5VrpYZzT9mSlFyB2OsOwLW4X1FSH85BGSr42HsYuHGwVMl9rA7D+wZykABZ41+A3Ck6IBg0OV+xNQ4S/ZkROkWgBqLyclLRzPC2kTN0CDKtAgU5bAEdxFQGeVDC7BLbGbrB5c91TWOMa0kvXHWa/tV/wvHSSWRfsKT0fYl9Suah/aBk97OZ3rOX6EU+gcSk9kLtsnIgv/JSvFFszpMMVyW2T3c2zsfnJdCkvK+GoWusAM1SIPw0OfDM/OBZ rsa-key-20050406" },
+          "NeedsPublicIP": { "value": true },
+          "OS": { "value": "SLES 12 SP2" },
+          "virtualSubnetName": { "value": "application1" },
+          "StorageAccountName": { "value": "[reference('sharedStorage').outputs.storageAccountName.value]" }
+        }
+      }
+    },
+
+
+    {
+      "name": "sharedNetwork",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('nestedTemplateFnewer'), '/', variables('networkTemplateFileName'), parameters('artifactsBaseLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {}
+      }
+    },
+
+    {
+      "name": "sharedStorage",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('nestedTemplateFnewer'), '/', variables('storageTemplateFileName'), parameters('artifactsBaseLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "storageType": {
+            "value": "Standard_LRS"
+          }
+        }
+      }
+    },
+
+    {
+      "name": "sharedVault",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('nestedTemplateFnewer'), '/vault.json', parameters('artifactsBaseLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "keyVaultName": { "value": "vault" },
+          "objectId": { "value": "ec9027e0-28a9-434f-b51d-3cf452c2615b" }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "artifactsBaseLocation": {
+      "type": "string",
+      "defaultValue": "https://storageaccount1235.blob.core.windows.net/testtemplates"
+    },
+    "artifactsBaseLocationSasToken": {
+      "type": "securestring",
+      "defaultValue": ""
+    }
+  },
+
+
+
+  "variables": {
+    "windowsVMs": "WindowsVMs.json",
+    "nestedTemplateFolder": "nested",
+    "networkTemplateFileName": "network.json",
+    "storageTemplateFileName": "storage.json"
+  },
+
+
+
+  "resources": [
+
+    {
+      "name": "sharedNet",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('nestedTemplateFolder'), '/', variables('networkTemplateFileName'), parameters('artifactsBaseLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {}
+      }
+    },
+    {
+      "name": "sharedStor",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('nestedTemplateFolder'), '/', variables('storageTemplateFileName'), parameters('artifactsBaseLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "storageType": {
+            "value": "Standard_LRS"
+          }
+        }
+      }
+    },
+
+    {
+      "name": "WindowsBox",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "sharedNet",
+        "sharedStor"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('windowsVMs'), parameters('artifactsBaseLocationSasToken'))]"
+        },
+        "parameters": {
+          "artifactsBaseLocation": { "value": "[parameters('artifactsBaseLocation')]" },
+          "StorageAccountName": { "value": "[reference('sharedStor').outputs.storageAccountName.value]" },
+          "adminPassword": {
+            "reference": {
+              "keyVault": {
+                "id": "/subscriptions/a364fa22-64d7-4263-b22f-0800903d878a/resourceGroups/CloudEngArtifacts/providers/Microsoft.KeyVault/vaults/CloudEngKeyVault"
+              },
+              "secretName": "DefaultAzureVMpassword"
+            }
+          },
+          "vmName": { "value": "azuseappname" },
+          "vmSize": { "value": "Standard_D2_v2" },
+          "needsPublicIP": { "value": true },
+          "needsAvailabilitySet": { "value": false },
+          "faultDomains": { "value": 2 },
+          "updateDomains": { "value": 2 },
+          "vmCountStart": { "value": 1 },
+          "vmCount": { "value": 1 },
+          "numDataDisks": { "value": 1 },
+          "sizeOfDataDisksInGB": { "value": 32 },
+          "os": { "value": "2012-R2-Datacenter" },
+          "virtualSubnetName": { "value": "application1" },
+          "environment": { "value": "Prod" }
+        }
+      }
+    }
+
+
+  ],
+
+  "outputs": {
+  }
+}

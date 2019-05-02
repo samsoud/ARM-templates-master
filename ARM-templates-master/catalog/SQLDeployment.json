@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "artifactsBaseLocation": {
+      "type": "string",
+      "defaultValue": "https://storageaccount1235.blob.core.windows.net/templates"
+    },
+    "artifactsBaseLocationSasToken": {
+      "type": "securestring",
+      "defaultValue": ""
+    }
+  },
+
+
+
+  "variables": {
+    "sqlDatabase": "SqlDatabase.json"
+  },
+
+
+
+  "resources": [
+
+    {
+      "name": "SqlDatabase",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('sqlDatabase'), parameters('artifactsBaseLocationSasToken'))]"
+        },
+        "parameters": {
+          "adminPassword": {
+            "reference": {
+              "keyVault": {
+                "id": "/subscriptions/a364fa22-64d7-4263-b22f-0800903d878a/resourceGroups/CloudEngArtifacts/providers/Microsoft.KeyVault/vaults/CloudEngKeyVault"
+              },
+              "secretName": "DefaultAzureVMpassword"
+            }
+          },
+          "sqlServerName": { "value": "canprojsqldev" },
+          "databaseName": { "value": "projdev" },
+          "edition": { "value": "Standard" },
+          "requestedServiceObjectiveName": { "value": "S0" }
+        }
+      }
+    }
+
+  ],
+
+  "outputs": {
+  }
+}

@@ -1,0 +1,226 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "The Storage Account where extension will store data."
+      }
+    },
+    "vmName": {
+      "type": "string",
+      "defaultValue": "win",
+      "minLength": 1,
+      "maxLength": 64,
+      "metadata": {
+        "description": "The name of the Windows VM the Extension will be installed on."
+      }
+    },
+    "environment": {
+      "type": "string",
+      "allowedValues": [
+        "PreProd",
+        "Prod"
+      ],
+      "metadata": {
+        "description": "Indicates whether the VM is for PreProd or Prod for OMS"
+      }
+    },
+    "scriptStorageAccountKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Key to the storage account housing the binaries/scripts to install on a new VM"
+      }
+    }
+
+  },
+
+  "variables": {
+    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts/', parameters('StorageAccountName'))]",
+    "wadlogs": "<WadCfg> <DiagnosticMonitorConfiguration overallQuotaInMB=\"4096\" xmlns=\"http://schemas.microsoft.com/ServiceHosting/2010/10/DiagnosticsConfiguration\"> <DiagnosticInfrastructureLogs scheduledTransferLogLevelFilter=\"Error\"/> <WindowsEventLog scheduledTransferPeriod=\"PT1M\" > <DataSource name=\"Application!*[System[(Level = 1 or Level = 2)]]\" /> <DataSource name=\"Security!*[System[(Level = 1 or Level = 2)]]\" /> <DataSource name=\"System!*[System[(Level = 1 or Level = 2)]]\" /></WindowsEventLog>",
+    "wadperfcounters1": "<PerformanceCounters scheduledTransferPeriod=\"PT1M\"><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% Processor Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU utilization\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% Privileged Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU privileged time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% User Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU user time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor Information(_Total)\\Processor Frequency\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"CPU frequency\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\System\\Processes\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Processes\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Process(_Total)\\Thread Count\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Threads\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Process(_Total)\\Handle Count\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Handles\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\% Committed Bytes In Use\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Memory usage\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Available Bytes\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory available\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Committed Bytes\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory committed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Commit Limit\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory commit limit\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active time\" locale=\"en-us\"/></PerformanceCounterConfiguration>",
+    "wadperfcounters2": "<PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Read Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active read time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Write Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active write time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Transfers/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Reads/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk read operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Writes/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk write operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Read Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk read speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Write Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk write speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\LogicalDisk(_Total)\\% Free Space\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk free space (percentage)\" locale=\"en-us\"/></PerformanceCounterConfiguration></PerformanceCounters>",
+    "wadcfgxstart": "[concat(variables('wadlogs'), variables('wadperfcounters1'), variables('wadperfcounters2'), '<Metrics resourceId=\"')]",
+    "wadmetricsresourceid": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name , '/providers/', 'Microsoft.Compute/virtualMachines/')]",
+    "wadcfgxend": "\"><MetricAggregation scheduledTransferPeriod=\"PT1H\"/><MetricAggregation scheduledTransferPeriod=\"PT1M\"/></Metrics></DiagnosticMonitorConfiguration></WadCfg>",
+    "omsReference": {
+      "PreProd": {
+        "workspaceID": "11111111-1111-1111-1111-12e7e3550b00",
+        "workspaceRG": "it-oms-preprod"
+      },
+      "Prod": {
+        "workspaceID": "11111111-1111-1111-1111-36b0ba88a664",
+        "workspaceRG": "it-oms-prod"
+      }
+    },
+    "omsInstance": "[variables('omsReference')[parameters('environment')]]",
+    "omsWorkspaceID": "[string(variables('omsInstance').workspaceID)]",
+    "omsWorkspaceRG": "[string(variables('omsInstance').workspaceRG)]",
+    "scriptStorageAccountName": "storageaccount1235",
+    "scriptContainerName": "Orgbinaries"
+  },
+
+
+
+  "resources": [
+    {
+      "apiVersion": "2016-03-30",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'), '/Microsoft.Insights.VMDiagnosticsSettings')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "AzureDiagnostics"
+      },
+      "properties": {
+        "publisher": "Microsoft.Azure.Diagnostics",
+        "type": "IaaSDiagnostics",
+        "typeHandlerVersion": "1.5",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "xmlCfg": "[base64(concat(variables('wadcfgxstart'),variables('wadmetricsresourceid'),concat(parameters('vmName')),variables('wadcfgxend')))]",
+          "StorageAccount": "[parameters('storageAccountName')]"
+        },
+        "protectedSettings": {
+          "storageAccountName": "[parameters('storageAccountName')]",
+          "storageAccountKey": "[listKeys(variables('storageAccountId'), '2016-01-01').keys[0].value]",
+          "storageAccountEndPoint": "https://core.windows.net"
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'), '/Microsoft.EnterpriseCloud.Monitoring')]",
+      "apiVersion": "2016-03-30",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "OMS"
+      },
+      "properties": {
+        "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+        "type": "MicrosoftMonitoringAgent",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "workspaceId": "[variables('omsWorkspaceID')]"
+        },
+        "protectedSettings": {
+          "workspaceKey": "[listKeys(resourceId('991c0c6a-62c6-445a-b332-e214efad9e9a',variables('omsWorkspaceRG'),'Microsoft.OperationalInsights/workspaces',variables('omsWorkspaceRG')), '2015-03-20').primarySharedKey]"
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'),'/IaaSAntimalware')]",
+      "apiVersion": "2016-03-30",
+      "location": "[resourceGroup().Location]",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "AntiMalware"
+      },
+      "properties": {
+        "publisher": "Microsoft.Azure.Security",
+        "type": "IaaSAntimalware",
+        "typeHandlerVersion": "1.5",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "AntimalwareEnabled": true,
+          "Exclusions": {
+            "Extensions": "",
+            "Paths": "",
+            "Processes": ""
+          },
+          "RealtimeProtectionEnabled": "true",
+          "ScheduledScanSettings": {
+            "isEnabled": "true",
+            "scanType": "Quick",
+            "day": "7",
+            "time": "120"
+          }
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'),'/BGInfo')]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "BGInfo"
+      },
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "BGInfo",
+        "typeHandlerVersion": "2.1",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "Properties": [
+          ]
+        }
+      }
+    },
+
+    {
+      "apiVersion": "2015-05-01-preview",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'), '/DSCExtension')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "Microsoft.Insights.VMDiagnosticsSettings",
+        "Microsoft.EnterpriseCloud.Monitoring",
+        "IaaSAntimalware",
+        "BGInfo"
+      ],
+      "tags": {
+        "displayName": "DSCExtension"
+      },
+      "properties": {
+        "type": "DSC",
+        "publisher": "Microsoft.Powershell",
+        "typeHandlerVersion": "2.26",
+        "autoUpgradeMinorVersion": false,
+        "settings": {
+          "modulesUrl": "https://storageaccount1235.blob.core.windows.net/scripts/OrgBaseConfig.zip",
+          "configurationFunction": "OrgBaseConfig.ps1\\OrgBaseConfig"
+        },
+        "protectedSettings": null
+      }
+    },
+
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'), '/WindowsCustomScript')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "DSCExtension"
+      ],
+      "tags": {
+        "displayName": "CustomScript"
+      },
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "https://storageaccount1235.blob.core.windows.net/scripts/wininit.ps1"
+          ]
+        },
+        "protectedSettings": {
+          "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File wininit.ps1 -storageName ',variables('scriptStorageAccountName'),' -containerName ',variables('scriptContainerName'),' -storageKey ',parameters('scriptStorageAccountKey'))]"
+        }
+      }
+    }
+
+  ],
+
+  "outputs": {
+  }
+}

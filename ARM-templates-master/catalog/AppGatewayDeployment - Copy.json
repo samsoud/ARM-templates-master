@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "artifactsBaseLocation": {
+      "type": "string",
+      "defaultValue": "https://storageaccount1235.blob.core.windows.net/templates"
+    },
+    "artifactsBaseLocationSasToken": {
+      "type": "securestring",
+      "defaultValue": ""
+    }
+  },
+
+
+
+  "variables": {
+    "nestedTemplateFolder": "nested",
+    "appGatewayTemplateFileName": "ApplicationGateway.json",
+    "networkTemplateFileName": "network.json",
+    "storageTemplateFileName": "storage.json"
+  },
+
+
+
+  "resources": [
+
+    {
+      "name": "sharedNet",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('nestedTemplateFolder'), '/', variables('networkTemplateFileName'), parameters('artifactsBaseLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {}
+      }
+    },
+
+    {
+      "name": "ApplicationGateway",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [
+        "sharedNet"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('artifactsBaseLocation'), '/', variables('nestedTemplateFolder'), '/', variables('appGatewayTemplateFileName'), parameters('artifactsBaseLocationSasToken'))]"
+        },
+        "parameters": {
+          "applicationGatewayName": { "value": "useprojappgatedev" },
+          "applicationGatewayTier": { "value": "WAF" }
+        }
+      }
+    }
+
+
+  ],
+
+  "outputs": {
+  }
+}

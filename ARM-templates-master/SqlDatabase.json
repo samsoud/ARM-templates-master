@@ -1,0 +1,170 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": { "description": "Azure region location of the database" }
+    },
+
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "hOrg9",
+      "metadata": { "description": "Administration ID" }
+    },
+
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": { "description": "Administrator secure password" }
+    },
+
+    "sqlServerName": {
+      "type": "string",
+      "metadata": { "description": "SQL Server Name" }
+    },
+
+    "databaseName": {
+      "type": "string",
+      "metadata": { "description": "Database Name" }
+    },
+
+    "edition": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium",
+        "PremiumRS"
+      ],
+      "metadata": { "description": "Database performance class (e.g. Standard)" }
+    },
+
+    "requestedServiceObjectiveName": {
+      "type": "string",
+      "allowedValues": [
+        "Basic",
+        "S0",
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S6",
+        "S7",
+        "S9",
+        "S12",
+        "P1",
+        "P2",
+        "P4",
+        "P6",
+        "P11",
+        "P15",
+        "PRS1",
+        "PRS2",
+        "PRS4",
+        "PRS6"
+      ],
+      "metadata": { "description": "Database performance code (e.g. S0)" }
+    },
+
+    "maxSizeBytes": {
+      "type": "string",
+      "defaultValue": "268435456000",
+      "metadata": { "description": "Max Size Bytes" }
+    },
+
+    "collation": {
+      "type": "string",
+      "defaultValue": "SQL_Latin1_General_CP1_CI_AS",
+      "metadata": { "description": "Database Collation" }
+    }
+
+  },
+
+  "variables": {
+  },
+
+  "resources": [
+    {
+
+      "type": "Microsoft.Sql/servers",
+      "location": "[parameters('location')]",
+      "name": "[concat(parameters('sqlserverName'))]",
+      "tags": {
+        "displayName": "SqlServer"
+      },
+      "apiVersion": "2014-04-01-preview",
+      "properties": {
+        "administratorLogin": "[parameters('adminUsername')]",
+        "administratorLoginPassword": "[parameters('adminPassword')]",
+        "version": "12.0"
+      },
+      "resources": [
+
+        {
+          "type": "databases",
+          "location": "[resourceGroup().location]",
+          "tags": {
+            "displayName": "[concat('databaseName')]"
+          },
+          "apiVersion": "2014-04-01-preview",
+          "name": "[parameters('databaseName')]",
+          "dependsOn": [
+            "[concat(parameters('sqlserverName'))]"
+          ],
+
+          "properties": {
+            "edition": "[parameters('edition')]",
+            "collation": "[parameters('collation')]",
+            "maxSizeBytes": "[parameters('maxSizeBytes')]",
+            "requestedServiceObjectiveName": "[parameters('requestedServiceObjectiveName')]"
+          }
+        },
+        {
+          "type": "firewallrules",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat(parameters('sqlserverName'))]"
+          ],
+          "location": "[parameters('location')]",
+          "name": "OrgNA1SQL",
+          "properties": {
+            "startIpAddress": "136.1.0.0",
+            "endIpAddress": "136.1.255.255"
+          }
+        },
+        {
+          "type": "firewallrules",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat(parameters('sqlserverName'))]"
+          ],
+          "location": "[parameters('location')]",
+          "name": "OrgNA2SQL",
+          "properties": {
+            "startIpAddress": "136.2.0.0",
+            "endIpAddress": "136.2.255.255"
+          }
+        }
+      ]
+    }
+
+  ],
+
+  "outputs": {
+    "sqlserverName": {
+      "type": "string",
+      "value": "[parameters('sqlserverName')]"
+    },
+    "databaseName": {
+      "type": "string",
+      "value": "[parameters('databaseName')]"
+    },
+    "database": {
+      "type": "object",
+      "value": "[reference(parameters('databaseName'))]"
+    }
+  }
+}
