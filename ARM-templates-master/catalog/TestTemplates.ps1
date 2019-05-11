@@ -9,7 +9,7 @@ $ResGrp = Get-AzureRmResourceGroup -Name $resourceGroupName -Location $location 
 
 $Params = @{
 
-"artifactsBaseLocation" = "https://OrderDynamics.blob.core.windows.net/testtemplates"
+"artifactsBaseLocation" = "https://samsoudstorage123.blob.core.windows.net/testtemplates"
 "storageAccountName"="strgcloudengartifacts"
 "adminPassword"="@EastN0rth321"
 "vmSize"= "Standard_DS2_v2"
