@@ -41,7 +41,7 @@ Function Start-CloudEngTemplateDeployment {
                 
         [Parameter()]
         [ValidateSet('https://OrderDynamics.blob.core.windows.net/templates','https://OrderDynamics.blob.core.windows.net/testtemplates')]
-        [String] $artifactsBaseLocation = 'https://OrderDynamics.blob.core.windows.net/templates'
+        [String] $artifactsBaseLocation = 'https://samsoudstorage123.blob.core.windows.net/templates'
         )
 
     Write-Verbose -Message "Finding template on path $deployTemplatePath"
