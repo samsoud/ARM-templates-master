@@ -106,8 +106,6 @@
       }
     },
 
-
-
     {
       "apiVersion": "[variables('apiVersion')]",
       "name": "[parameters('ApplicationGatewayName')]",
