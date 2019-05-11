@@ -383,7 +383,7 @@
       "apiVersion": "2015-06-15",
 	  "condition": "[equals(parameters('production'), 'Yes')]",
       "type": "Microsoft.Network/publicIPAddresses",
-      "name": : { "value": "[concat(parameters('vmName'), padleft(copyindex(parameters('vmCountStart')), 3, '0'), variables('pubifName'))]" },
+      "name": { "value": "[concat(parameters('vmName'), padleft(copyindex(parameters('vmCountStart')), 3, '0'), variables('pubifName'))]" },
       "location": "[parameters('location')]",
       "properties": {
         "publicIPAllocationMethod": "[parameters('publicIPAddressType')]",
