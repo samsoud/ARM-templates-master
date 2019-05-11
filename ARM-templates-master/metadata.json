@@ -2,6 +2,6 @@
   "itemDisplayName": "Create an Elastic Search Cluster",
   "description": "This template creates an Elastic Search Cluster",
   "summary": "This template creates an Elastic Search Cluster",
-  "githubUsername": "jlarrow",
+  "githubUsername": "samsoud,
   "dateUpdated": "2017-07-28"
 }
