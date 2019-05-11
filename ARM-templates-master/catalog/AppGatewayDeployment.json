@@ -4,7 +4,7 @@
   "parameters": {
     "artifactsBaseLocation": {
       "type": "string",
-      "defaultValue": "https://storageaccount1235.blob.core.windows.net/container01"
+      "defaultValue": "https://samsoudstorage123.blob.core.windows.net/container01"
     },
     "artifactsBaseLocationSasToken": {
       "type": "securestring",
