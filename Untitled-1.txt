@@ -1,0 +1,90 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+ 
+ "parameters": {
+        "administratorLogin": {
+            "type": "string",
+"defaultValue": "sam.soud@gmail.com"
+        },
+        "administratorLoginPassword": {
+            "type": "string",
+"defaultValue": "N0rtheastN08765464"
+        },
+        "location": {
+            "type": "string",
+"defaultValue": "eastus"
+        },
+        "managedInstanceName": {
+            "type": "string",
+"defaultValue": "sammgmtinstance1234"
+        },
+     
+        "skuName": {
+            "type": "string",
+            "defaultValue": "GP_Gen4"
+        },
+        "skuEdition": {
+            "type": "string",
+            "defaultValue": "GeneralPurpose"
+        },
+        "storageSizeInGB": {
+         "type": "string",
+ "defaultValue": "32"
+        },
+
+"vCores": {
+            "type": "string",
+            "defaultValue": "4",
+            "metadata": {
+                "description": "Number of vCores for this instance"
+            }
+        },
+     
+        "licenseType": {
+            "type": "string",
+            "defaultValue": "LicenseIncluded"
+        },
+        "hardwareFamily": {
+            "type": "string",
+            "defaultValue": "Gen4"
+        },
+
+"subnetId": {
+            "type": "string",
+            "defaultValue": "/subscriptions/81a9ea66-6119-4aa3-8322-fd4abfd5faae/resourceGroups/mginst/providers/Microsoft.Network/virtualNetworks/mginsvnet/subnets/subnet001"
+
+           
+        }
+
+
+    },
+
+
+"resources": [
+
+{
+            "apiVersion": "2015-05-01-preview",
+            "type": "Microsoft.Sql/managedInstances",
+            "identity": {
+                "type": "SystemAssigned"
+},
+"location": "[parameters('location')]",
+"name": "[parameters('managedInstanceName')]",
+"sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('skuEdition')]"
+},
+"properties": {
+"administratorLogin": "[parameters('administratorLogin')]",
+"administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+"subnetId": "[parameters('subnetId')]",
+"storageSizeInGB": "[parameters('storageSizeInGB')]",
+"vCores": "[parameters('vCores')]",
+"licenseType": "[parameters('licenseType')]",
+"hardwareFamily": "[parameters('hardwareFamily')]"
+},
+}
+           
+]
+}

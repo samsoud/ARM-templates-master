@@ -1,0 +1,277 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "primaryLocation": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": { "description": "Azure region location of the primary database" }
+    },
+
+    "secondaryLocation": {
+      "type": "string",
+      "defaultValue": "westus",
+      "metadata": { "description": "Azure region location of the secondary database" }
+    },
+
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "hOrg9",
+      "metadata": { "description": "Administration ID" }
+    },
+
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": { "description": "Administrator secure password" }
+    },
+
+    "sqlServerPrimaryName": {
+      "type": "string",
+      "metadata": { "description": "Name of the Primary SQL Server" }
+    },
+
+    "sqlserverSecondaryName": {
+      "type": "string",
+      "metadata": { "description": "Name of the Secondary SQL Server" }
+    },
+
+    "databaseName": {
+      "type": "string",
+      "metadata": { "description": "Database Name" }
+    },
+
+    "sqlFailoverGroupName": {
+      "type": "string",
+      "metadata": { "description": "Name of the failover group" }
+    },
+
+    "failoverPolicy": {
+      "type": "string",
+      "defaultValue": "Automatic",
+      "allowedValues": [
+        "Automatic",
+        "Manual"
+      ],
+      "metadata": { "description": "Failover policy (automatic or manual)" }
+    },
+
+    "failoverGracePeriod": {
+      "type": "int",
+      "defaultValue": 60,
+      "minValue": 60,
+      "maxValue": 1440,
+      "metadata": { "description": "Grace period of automatic failover (60-1440 minutes in 60 minute intervals)" }
+    },
+
+    "edition": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium",
+        "PremiumRS"
+      ],
+      "metadata": { "description": "Database performance class (e.g. Standard)" }
+    },
+
+    "requestedServiceObjectiveName": {
+      "type": "string",
+      "allowedValues": [
+        "Basic",
+        "S0",
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S6",
+        "S7",
+        "S9",
+        "S12",
+        "P1",
+        "P2",
+        "P4",
+        "P6",
+        "P11",
+        "P15",
+        "PRS1",
+        "PRS2",
+        "PRS4",
+        "PRS6"
+      ],
+      "metadata": { "description": "Database performance code (e.g. S0)" }
+    },
+
+    "maxSizeBytes": {
+      "type": "string",
+      "defaultValue": "268435456000",
+      "metadata": { "description": "Max Size Bytes" }
+    },
+
+    "collation": {
+      "type": "string",
+      "defaultValue": "SQL_Latin1_General_CP1_CI_AS",
+      "metadata": { "description": "Database Collation" }
+    }
+
+  },
+
+  "variables": {
+  },
+
+  "resources": [
+    {
+
+      "type": "Microsoft.Sql/servers",
+      "location": "[parameters('primaryLocation')]",
+      "name": "[concat(parameters('sqlServerPrimaryName'))]",
+      "tags": {
+        "displayName": "SqlServer"
+      },
+      "apiVersion": "2014-04-01-preview",
+      "properties": {
+        "administratorLogin": "[parameters('adminUsername')]",
+        "administratorLoginPassword": "[parameters('adminPassword')]",
+        "version": "12.0"
+      },
+      "resources": [
+
+        {
+          "apiVersion": "2015-05-01-preview",
+          "type": "failoverGroups",
+          "name": "[parameters('sqlFailoverGroupName')]",
+          "properties": {
+            "serverName": "[parameters('sqlServerPrimaryName')]",
+            "partnerServers": [
+              {
+                "id": "[resourceId('Microsoft.Sql/servers/', parameters('sqlServerSecondaryName'))]"
+              }
+            ],
+            "readWriteEndpoint": {
+              "failoverPolicy": "[parameters('failoverPolicy')]",
+              "failoverWithDataLossGracePeriodMinutes": "[parameters('failoverGracePeriod')]"
+            },
+            "readOnlyEndpoint": {
+              "failoverPolicy": "Disabled"
+            },
+            "databases": [
+              "[resourceId('Microsoft.Sql/servers/databases', parameters('sqlServerPrimaryName'), parameters('databaseName'))]"
+            ]
+          },
+          "dependsOn": [
+            "[parameters('sqlServerPrimaryName')]",
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('sqlServerPrimaryName'), parameters('databaseName'))]",
+            "[resourceId('Microsoft.Sql/servers', parameters('sqlServerSecondaryName'))]"
+          ]
+        },
+
+        {
+          "type": "databases",
+          "location": "[resourceGroup().location]",
+          "tags": {
+            "displayName": "[concat('databaseName')]"
+          },
+          "apiVersion": "2014-04-01-preview",
+          "name": "[parameters('databaseName')]",
+          "dependsOn": [
+            "[concat(parameters('sqlServerPrimaryName'))]"
+          ],
+
+          "properties": {
+            "edition": "[parameters('edition')]",
+            "collation": "[parameters('collation')]",
+            "maxSizeBytes": "[parameters('maxSizeBytes')]",
+            "requestedServiceObjectiveName": "[parameters('requestedServiceObjectiveName')]"
+          }
+        },
+        {
+          "type": "firewallrules",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat(parameters('sqlServerPrimaryName'))]"
+          ],
+          "location": "[parameters('primaryLocation')]",
+          "name": "OrgNA1SQL",
+          "properties": {
+            "startIpAddress": "136.1.0.0",
+            "endIpAddress": "136.1.255.255"
+          }
+        },
+        {
+          "type": "firewallrules",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat(parameters('sqlServerPrimaryName'))]"
+          ],
+          "location": "[parameters('primaryLocation')]",
+          "name": "OrgNA2SQL",
+          "properties": {
+            "startIpAddress": "136.2.0.0",
+            "endIpAddress": "136.2.255.255"
+          }
+        }
+      ]
+    },
+
+    {
+      "type": "Microsoft.Sql/servers",
+      "kind": "v12.0",
+      "name": "[parameters('sqlServerSecondaryName')]",
+      "apiVersion": "2014-04-01-preview",
+      "location": "[parameters('secondaryLocation')]",
+      "properties": {
+        "administratorLogin": "[parameters('adminUsername')]",
+        "administratorLoginPassword": "[parameters('adminPassword')]",
+        "version": "12.0"
+      },
+      "resources": [
+        {
+          "type": "firewallrules",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat(parameters('sqlServerSecondaryName'))]"
+          ],
+          "location": "[parameters('secondaryLocation')]",
+          "name": "OrgNA1SQL",
+          "properties": {
+            "startIpAddress": "136.1.0.0",
+            "endIpAddress": "136.1.255.255"
+          }
+        },
+        {
+          "type": "firewallrules",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat(parameters('sqlServerSecondaryName'))]"
+          ],
+          "location": "[parameters('secondaryLocation')]",
+          "name": "OrgNA2SQL",
+          "properties": {
+            "startIpAddress": "136.2.0.0",
+            "endIpAddress": "136.2.255.255"
+          }
+        }
+      ]
+    }
+  ],
+
+  "outputs": {
+    "sqlServerPrimaryName": {
+      "type": "string",
+      "value": "[parameters('sqlServerPrimaryName')]"
+    },
+    "sqlServerSecondaryName": {
+      "type": "string",
+      "value": "[parameters('sqlServerSecondaryName')]"
+    },
+    "databaseName": {
+      "type": "string",
+      "value": "[parameters('databaseName')]"
+    },
+    "database": {
+      "type": "object",
+      "value": "[reference(parameters('databaseName'))]"
+    }
+  }
+}

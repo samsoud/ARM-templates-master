@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "<first-parameter-name>": {
+      "value": "<first-value>"
+    },
+    "<second-parameter-name>": {
+      "reference": {
+        "keyVault": {
+          "id": "<resource-id-key-vault>"
+        },
+        "secretName": "<secret-name>"
+      }
+    }
+  }
+}
